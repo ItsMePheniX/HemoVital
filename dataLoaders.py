@@ -1,6 +1,9 @@
 from torch.utils.data import Dataset, DataLoader
+import os
+import torch
 
-# Define the Dataset
+
+OUTPUT_PATH = r"E:\Codes\HAR Model"
 class HARVideoDataset(Dataset):
     def __init__(self, data_path):
         self.data_path = data_path
@@ -19,6 +22,6 @@ class HARVideoDataset(Dataset):
         video_tensor = torch.load(video_path)
         return video_tensor, label
 
-# Create DataLoader
+
 dataset = HARVideoDataset(OUTPUT_PATH)
 train_loader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)

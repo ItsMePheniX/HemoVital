@@ -11,5 +11,5 @@ def evaluate_model(model, dataloader):
 
     print(f"Test Accuracy: {correct/total:.4f}")
 
-# Evaluate the model
-evaluate_model(model, train_loader)  # Use a test set instead of train_loader in practice
+
+evaluate_model(model, train_loader)  
