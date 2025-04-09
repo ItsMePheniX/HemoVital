@@ -1,224 +1,170 @@
 import os
 import cv2
-import math
 import random
 import numpy as np
-import datetime as dt
-import tensorflow as tf
-import matplotlib.pyplot as plt 
-from collections import deque
-from IPython.display import Video
-from sklearn.model_selection import train_test_split
-from tensorflow.keras.layers import *
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.utils import plot_model
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision.transforms as transforms
+import matplotlib.pyplot as plt
+from torch.utils.data import Dataset, DataLoader, random_split
+from sklearn.preprocessing import LabelEncoder
 
-seed_constant = 27
-np.random.seed(seed_constant)
-random.seed(seed_constant)
-tf.random.set_seed(seed_constant)
+# Reproducibility
+SEED = 27
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
 
-IMAGE_HEIGHT , IMAGE_WIDTH = 256, 256
+# Device configuration
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
 
+# Configs
+IMAGE_HEIGHT, IMAGE_WIDTH = 256, 256
 SEQUENCE_LENGTH = 10
-
+BATCH_SIZE = 4
+EPOCHS = 30
+MAX_VIDEOS_PER_CLASS = 50
 DATASET_DIR = r"E:\DataSets\HAR"
+CLASSES_LIST = sorted([d.name for d in os.scandir(DATASET_DIR) if d.is_dir()])
 
-CLASSES_LIST = sorted([entry.name for entry in os.scandir(DATASET_DIR) if entry.is_dir()])
-# print(CLASSES_LIST)
+# Image preprocessing
+transform = transforms.Compose([
+    transforms.ToPILImage(),
+    transforms.Resize((IMAGE_HEIGHT, IMAGE_WIDTH)),
+    transforms.ToTensor(),
+])
 
-plt.figure(figsize = (20, 20))
+# Dataset class
+class VideoDataset(Dataset):
+    def __init__(self, dataset_dir, classes, sequence_length, transform=None):
+        self.dataset_dir = dataset_dir
+        self.classes = classes
+        self.sequence_length = sequence_length
+        self.transform = transform
+        self.samples = []
+        self.label_encoder = LabelEncoder()
+        self.label_encoder.fit(self.classes)
+        self._load_dataset()
 
-all_classes_names = os.listdir(DATASET_DIR)
+    def _load_dataset(self):
+        for class_name in self.classes:
+            class_dir = os.path.join(self.dataset_dir, class_name)
+            files = os.listdir(class_dir)[:MAX_VIDEOS_PER_CLASS]
+            for file_name in files:
+                video_path = os.path.join(class_dir, file_name)
+                self.samples.append((video_path, class_name))
 
-random_range = random.sample(range(len(all_classes_names)), 7) 
+    def __len__(self):
+        return len(self.samples)
 
-for counter, random_index in enumerate(random_range, 1):
+    def _extract_frames(self, video_path):
+        frames = []
+        cap = cv2.VideoCapture(video_path)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    selected_class_Name = all_classes_names[random_index]
+        if frame_count < self.sequence_length:
+            return None
 
-    video_files_names_list = os.listdir(f'{DATASET_DIR}/{selected_class_Name}')
+        skip = max(int(frame_count / self.sequence_length), 1)
 
-    selected_video_file_name = random.choice(video_files_names_list)
+        for i in range(self.sequence_length):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, i * skip)
+            success, frame = cap.read()
+            if not success:
+                break
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            if self.transform:
+                frame = self.transform(frame)
+            frames.append(frame)
 
-    video_reader = cv2.VideoCapture(f'{DATASET_DIR}/{selected_class_Name}/{selected_video_file_name}')
-    
-    _ , bgr_frame = video_reader.read()
+        cap.release()
 
-    video_reader.release()
+        if len(frames) == self.sequence_length:
+            return torch.stack(frames)
+        return None
 
-    rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+    def __getitem__(self, idx):
+        video_path, class_name = self.samples[idx]
+        label = self.label_encoder.transform([class_name])[0]
+        frames_tensor = self._extract_frames(video_path)
+        if frames_tensor is None:
+            return self.__getitem__((idx + 1) % len(self.samples))  # Try next sample
+        return frames_tensor, torch.tensor(label, dtype=torch.long)
 
-    cv2.putText(rgb_frame, selected_class_Name, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-    
-    plt.subplot(5, 4, counter);plt.imshow(rgb_frame);plt.axis('off')
+# LRCN Model
+class LRCN(nn.Module):
+    def __init__(self, num_classes):
+        super(LRCN, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(3, 16, 3, padding=1), nn.ReLU(), nn.MaxPool2d(4), nn.Dropout(0.25),
+            nn.Conv2d(16, 32, 3, padding=1), nn.ReLU(), nn.MaxPool2d(4), nn.Dropout(0.25),
+            nn.Conv2d(32, 64, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2), nn.Dropout(0.25),
+            nn.Conv2d(64, 64, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2)
+        )
+        self.flatten = nn.Flatten()
+        self.lstm = nn.LSTM(64 * 4 * 4, 32, batch_first=True)
+        self.fc = nn.Linear(32, num_classes)
 
-def frames_extraction(video_path):
-    frames_list = []
-    
-    video_reader = cv2.VideoCapture(video_path)
+    def forward(self, x):
+        b, t, c, h, w = x.size()
+        x = x.view(b * t, c, h, w)
+        x = self.conv(x)
+        x = self.flatten(x)
+        x = x.view(b, t, -1)
+        _, (hn, _) = self.lstm(x)
+        out = self.fc(hn[-1])
+        return out
 
-    video_frames_count = int(video_reader.get(cv2.CAP_PROP_FRAME_COUNT))
+# Train loop
+def train(model, train_loader, criterion, optimizer):
+    model.train()
+    total_loss = 0
+    for videos, labels in train_loader:
+        videos, labels = videos.to(device), labels.to(device)
 
-    skip_frames_window = max(int(video_frames_count/SEQUENCE_LENGTH), 1)
+        optimizer.zero_grad()
+        outputs = model(videos)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+    return total_loss / len(train_loader)
 
-    for frame_counter in range(SEQUENCE_LENGTH):
+# Eval loop
+def evaluate(model, val_loader, criterion):
+    model.eval()
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for videos, labels in val_loader:
+            videos, labels = videos.to(device), labels.to(device)
+            outputs = model(videos)
+            _, preds = torch.max(outputs, 1)
+            correct += (preds == labels).sum().item()
+            total += labels.size(0)
+    return correct / total
 
-        video_reader.set(cv2.CAP_PROP_POS_FRAMES, frame_counter * skip_frames_window)
+# Dataset and DataLoader
+dataset = VideoDataset(DATASET_DIR, CLASSES_LIST, SEQUENCE_LENGTH, transform=transform)
+train_size = int(0.8 * len(dataset))
+val_size = len(dataset) - train_size
+train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
 
-        success, frame = video_reader.read() 
+# Model, Loss, Optimizer
+model = LRCN(len(CLASSES_LIST)).to(device)
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
-        if not success:
-            break
+# Training loop
+for epoch in range(EPOCHS):
+    train_loss = train(model, train_loader, criterion, optimizer)
+    val_acc = evaluate(model, val_loader, criterion)
+    print(f"Epoch [{epoch+1}/{EPOCHS}] | Loss: {train_loss:.4f} | Val Acc: {val_acc:.4f}")
 
-        resized_frame = cv2.resize(frame, (IMAGE_HEIGHT, IMAGE_WIDTH))
-        
-        normalized_frame = resized_frame / 255
-        
-        frames_list.append(normalized_frame)
-    
-    video_reader.release()
-
-    return frames_list
-
-def create_dataset():
-
-    features = []
-    labels = []
-    video_files_paths = []
-    
-    for class_index, class_name in enumerate(CLASSES_LIST):
-        
-        print(f'Extracting Data of Class: {class_name}')
-        
-        files_list = os.listdir(os.path.join(DATASET_DIR, class_name))
-        
-        video_count = 0
-        
-        for file_name in files_list:
-            
-            video_file_path = os.path.join(DATASET_DIR, class_name, file_name)
-
-            frames = frames_extraction(video_file_path)
-
-            if len(frames) == SEQUENCE_LENGTH:
-
-                features.append(frames)
-                labels.append(class_index)
-                video_files_paths.append(video_file_path)
-                
-                video_count += 1
-                
-                if video_count == 50:
-                    break
-
-    features = np.asarray(features)
-    labels = np.array(labels)  
-    
-    return features, labels, video_files_paths
-
-features, labels, video_files_paths = create_dataset()
-print(len(features))
-one_hot_encoded_labels = to_categorical(labels)
-features_train, features_test, labels_train, labels_test = train_test_split(features, one_hot_encoded_labels,
-                                                                            test_size = 0.25, shuffle = True,
-                                                                            random_state = seed_constant)
-print(len(features_train[0]))
-
-def plot_metric(model_training_history, metric_name_1, metric_name_2, plot_name):
-    
-    metric_value_1 = model_training_history.history[metric_name_1]
-    metric_value_2 = model_training_history.history[metric_name_2]
-    
-    epochs = range(len(metric_value_1))
-
-    plt.plot(epochs, metric_value_1, 'blue', label = metric_name_1)
-    plt.plot(epochs, metric_value_2, 'red', label = metric_name_2)
-
-    plt.title(str(plot_name))
-
-    plt.legend()
-
-def create_LRCN_model():
-
-    model = Sequential()
-    
-    model.add(TimeDistributed(Conv2D(16, (3, 3), padding='same',activation = 'relu'),
-                              input_shape = (SEQUENCE_LENGTH, IMAGE_HEIGHT, IMAGE_WIDTH, 3)))
-    
-    model.add(TimeDistributed(MaxPooling2D((4, 4)))) 
-    model.add(TimeDistributed(Dropout(0.25)))
-    
-    model.add(TimeDistributed(Conv2D(32, (3, 3), padding='same',activation = 'relu')))
-    model.add(TimeDistributed(MaxPooling2D((4, 4))))
-    model.add(TimeDistributed(Dropout(0.25)))
-    
-    model.add(TimeDistributed(Conv2D(64, (3, 3), padding='same',activation = 'relu')))
-    model.add(TimeDistributed(MaxPooling2D((2, 2))))
-    model.add(TimeDistributed(Dropout(0.25)))
-    
-    model.add(TimeDistributed(Conv2D(64, (3, 3), padding='same',activation = 'relu')))
-    model.add(TimeDistributed(MaxPooling2D((2, 2))))
-                                      
-    model.add(TimeDistributed(Flatten()))
-                                      
-    model.add(LSTM(32))
-                                      
-    model.add(Dense(len(CLASSES_LIST), activation = 'softmax'))
-
-    model.summary()
-    
-    return model
-
-LRCN_model = create_LRCN_model()
-
-print("Model Created Successfully!")
-
-early_stopping_callback = EarlyStopping(monitor = 'val_loss', patience = 10, mode = 'min', restore_best_weights = True)
- 
-LRCN_model.compile(loss = 'categorical_crossentropy', optimizer = 'Adam', metrics = ["accuracy"])
-
-LRCN_model_training_history = LRCN_model.fit(x = features_train, y = labels_train, epochs = 100, batch_size = 4 ,
-                                             shuffle = True, validation_split = 0.2, callbacks = [early_stopping_callback])
-model_evaluation_history = LRCN_model.evaluate(features_test, labels_test)
-
-plot_metric(LRCN_model_training_history, 'loss', 'val_loss', 'Total Loss vs Total Validation Loss')
-
-plot_metric(LRCN_model_training_history, 'accuracy', 'val_accuracy', 'Total Accuracy vs Total Validation Accuracy')
-
-def predict_single_action(video_file_path, SEQUENCE_LENGTH):
-    video_reader = cv2.VideoCapture(video_file_path)
-    original_video_width = int(video_reader.get(cv2.CAP_PROP_FRAME_WIDTH))
-    original_video_height = int(video_reader.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    frames_list = []
-    
-    predicted_class_name = ''
-    video_frames_count = int(video_reader.get(cv2.CAP_PROP_FRAME_COUNT))
-    skip_frames_window = max(int(video_frames_count/SEQUENCE_LENGTH),1)
-    
-    for frame_counter in range(SEQUENCE_LENGTH):
-        video_reader.set(cv2.CAP_PROP_POS_FRAMES, frame_counter * skip_frames_window)
-        success, frame = video_reader.read() 
-        if not success:
-            break
-        resized_frame = cv2.resize(frame, (IMAGE_HEIGHT, IMAGE_WIDTH))
-        
-        normalized_frame = resized_frame / 255
-        
-        frames_list.append(normalized_frame)
-    
-    predicted_labels_probabilities = LRCN_model.predict(np.expand_dims(frames_list, axis = 0))[0]
-    predicted_label = np.argmax(predicted_labels_probabilities)
-    predicted_class_name = CLASSES_LIST[predicted_label]
-    
-    print(f'Action Predicted: {predicted_class_name}\nConfidence: {predicted_labels_probabilities[predicted_label]}')
-    
-    video_reader.release()
-
-input_video_file_path = r"F:\Downloads\videos\Running.mp4"
-
-predict_single_action(input_video_file_path, SEQUENCE_LENGTH)
-
-Video(input_video_file_path, embed=True, width=600)
+# Save model
+torch.save(model.state_dict(), "lrcn_model.pth")
+print("Model saved as lrcn_model.pth")
