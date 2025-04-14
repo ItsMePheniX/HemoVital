@@ -1,4 +1,3 @@
-# utils.py
 from datetime import datetime
 
 def log_event(action, path="activity_log.txt"):

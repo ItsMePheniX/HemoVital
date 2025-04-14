@@ -1,4 +1,3 @@
-# activity_model.py
 from transformers import TimesformerForVideoClassification, TimesformerFeatureExtractor
 from PIL import Image
 import torch

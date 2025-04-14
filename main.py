@@ -1,18 +1,18 @@
-# main.py
 import cv2
 import time
 from collections import deque
 from activity_model import ActivityRecognizer
 from utils import log_event
 
-URL = 'http://<your-raspberry-pi-ip>:5000/video_feed'
+#! In the below section enter your correct url
+URL = ''
 cap = cv2.VideoCapture(URL)
 
 frame_buffer = deque(maxlen=8)
 recognizer = ActivityRecognizer()
 last_action = None
 last_fall_time = 0
-fall_cooldown = 10  # seconds
+fall_cooldown = 10
 
 while True:
     ret, frame = cap.read()
@@ -29,7 +29,6 @@ while True:
             log_event(action)
             last_action = action
 
-        # Fall detection
         if "fall" in action.lower():
             if time.time() - last_fall_time > fall_cooldown:
                 log_event("⚠️ FALL DETECTED ⚠️")
