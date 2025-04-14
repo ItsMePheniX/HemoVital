@@ -5,7 +5,8 @@ from activity_model import ActivityRecognizer
 from utils import log_event
 
 #! In the below section enter your correct url
-URL = ''
+# URL = ''
+URL = 0
 cap = cv2.VideoCapture(URL)
 
 frame_buffer = deque(maxlen=8)
@@ -39,7 +40,7 @@ while True:
                     (0, 0, 255) if "fall" in action.lower() else (0, 255, 0), 2)
 
     cv2.imshow("Monitoring Feed", frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if cv2.waitKey(1) & 0xFF == ord('f'):
         break
 
 cap.release()

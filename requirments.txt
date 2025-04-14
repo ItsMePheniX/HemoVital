@@ -6,3 +6,6 @@ mediapipe
 numpy
 tensorflow
 datetime
+torch
+Pillow
+transformers

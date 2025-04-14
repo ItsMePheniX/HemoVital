@@ -1,0 +1,61 @@
+[2025-04-15 00:55:15] contact juggling
+[2025-04-15 00:55:15] singing
+[2025-04-15 00:55:15] beatboxing
+[2025-04-15 00:55:16] drawing
+[2025-04-15 00:55:16] headbutting
+[2025-04-15 00:55:16] drawing
+[2025-04-15 00:55:16] playing trumpet
+[2025-04-15 00:55:16] drawing
+[2025-04-15 00:55:17] playing trumpet
+[2025-04-15 00:55:17] beatboxing
+[2025-04-15 00:55:17] playing recorder
+[2025-04-15 00:55:20] beatboxing
+[2025-04-15 00:55:20] whistling
+[2025-04-15 00:55:21] playing recorder
+[2025-04-15 00:55:21] singing
+[2025-04-15 00:55:23] beatboxing
+[2025-04-15 00:55:23] singing
+[2025-04-15 00:55:23] beatboxing
+[2025-04-15 00:55:23] headbutting
+[2025-04-15 00:55:24] punching bag
+[2025-04-15 00:55:24] taking a shower
+[2025-04-15 00:55:24] spraying
+[2025-04-15 00:55:25] making bed
+[2025-04-15 00:55:30] headbutting
+[2025-04-15 00:55:30] rock scissors paper
+[2025-04-15 00:55:33] finger snapping
+[2025-04-15 00:55:33] headbanging
+[2025-04-15 00:55:35] making bed
+[2025-04-15 00:55:35] air drumming
+[2025-04-15 00:55:35] finger snapping
+[2025-04-15 00:55:35] bending back
+[2025-04-15 00:55:36] making bed
+[2025-04-15 00:55:36] catching or throwing frisbee
+[2025-04-15 00:55:37] ice skating
+[2025-04-15 00:55:37] drawing
+[2025-04-15 00:55:40] beatboxing
+[2025-04-15 00:55:40] drawing
+[2025-04-15 00:55:44] headbutting
+[2025-04-15 00:55:45] drawing
+[2025-04-15 00:55:45] headbutting
+[2025-04-15 00:55:45] ice skating
+[2025-04-15 00:55:46] pushing cart
+[2025-04-15 00:55:46] spraying
+[2025-04-15 00:55:47] drop kicking
+[2025-04-15 00:55:47] playing organ
+[2025-04-15 00:55:48] singing
+[2025-04-15 00:55:48] playing organ
+[2025-04-15 00:55:48] singing
+[2025-04-15 00:55:49] playing recorder
+[2025-04-15 00:55:50] singing
+[2025-04-15 00:55:50] playing recorder
+[2025-04-15 00:55:50] singing
+[2025-04-15 00:55:50] playing organ
+[2025-04-15 00:55:51] playing piano
+[2025-04-15 00:55:53] playing organ
+[2025-04-15 00:55:53] playing trumpet
+[2025-04-15 00:55:53] spraying
+[2025-04-15 00:55:54] taking a shower
+[2025-04-15 00:55:54] headbutting
+[2025-04-15 00:55:54] drawing
+[2025-04-15 00:55:55] beatboxing
