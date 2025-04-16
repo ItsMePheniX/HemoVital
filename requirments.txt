@@ -9,3 +9,8 @@ datetime
 torch
 Pillow
 transformers
+statsmodels
+pyserial
+biosppy
+wfdb
+peakutils
