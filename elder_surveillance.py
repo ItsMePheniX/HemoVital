@@ -141,7 +141,7 @@ if __name__ == "__main__":
     monitor = ElderlyMonitor()
     
     cv2.namedWindow("Elderly Monitoring", cv2.WINDOW_NORMAL)
-    cv2.resizeWindow("Elderly Monitoring", 800, 600)  # Larger display size
+    cv2.resizeWindow("Elderly Monitoring", 800, 600)
     
     frame_count = 0
     
@@ -155,7 +155,6 @@ if __name__ == "__main__":
             
             display_frame = frame.copy()
             
-            # Only process every 3rd frame to reduce load
             if frame_count % 3 == 0:
                 monitor.add_frame(frame.copy())
                 activity = monitor.predict_activity()
