@@ -45,8 +45,8 @@ class ElderlyMonitor:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {self.device}")
 
-        self.processor = AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-k400")
-        self.model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-base-finetuned-k400")
+        self.processor = AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-k600")
+        self.model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-base-finetuned-k600")
         self.model.to(self.device)
 
         self.frame_buffer = deque(maxlen=8)
@@ -132,6 +132,9 @@ if __name__ == "__main__":
     print("=" * 50)
     
     camera_index = 0
+    # camera_index = r"F:\Downloads\Dad Slips and Falls Down Basement Stairs - 1042464.mp4"
+    # camera_index = r"F:\Downloads\videoplayback.mp4"
+    # camera_index = r"F:\Downloads\videoplayback (1).mp4"
     cap = cv2.VideoCapture(camera_index)
     
     if not cap.isOpened():

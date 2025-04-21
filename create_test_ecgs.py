@@ -7,7 +7,7 @@ def create_directory(directory_path):
         os.makedirs(directory_path)
         print(f"Created directory: {directory_path}")
 
-test_dir = "new_ecg_data"
+test_dir = "new_ecg_data_2"
 create_directory(test_dir)
 
 def generate_normal_ecg(num_samples=280):
